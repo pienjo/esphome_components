@@ -11,9 +11,12 @@ static const char *const TAG = "SwitchingDimmerOutput";
 SwitchingDimmerOutput::SwitchingDimmerOutput(InternalGPIOPin *outputPin)
   : PollingComponent(pollingInterval)
   , mOutputPin { outputPin }
+  , mNrPhases {3}
+  , mDirection { Direction::DOWN }
+  , mPowerupLevel {1.}
   , mWantOn { false }
-  , mCurrentState { DimmerState::STATE_HIGH }
-  , mTargetState { DimmerState::STATE_HIGH }
+  , mCurrentPhase { 0 }
+  , mTargetPhase { 0 }
   , mIdleCount { 0 }
 {
 }
@@ -26,26 +29,29 @@ void SwitchingDimmerOutput::setup()
 void SwitchingDimmerOutput::write_state(float state)
 {
   ESP_LOGD(TAG, "writeState(%f)", state);
+  float stepSize = 1. / mNrPhases;
+  int discreteState = floor(state / stepSize + 0.5);
   
-  if (state < 0.10)
+  if (discreteState == 0)
   {
     mWantOn = false;
-  } else if (state < 0.33)
-  {
-    mWantOn = true;
-    mTargetState = DimmerState::STATE_LOW;
-  } else if (state < 0.66)
-  {
-    mWantOn = true;
-    mTargetState = DimmerState::STATE_MID;
-  }
+  } 
   else
   {
-    mTargetState = DimmerState::STATE_HIGH;
     mWantOn = true;
+    
+    switch (mDirection)
+    {
+      case Direction::UP:
+        mTargetPhase = (discreteState - 1);
+        break;
+      case Direction::DOWN:
+        mTargetPhase = mNrPhases - discreteState;
+        break;
+    }
   }
   
-  ESP_LOGD(TAG, "target state: %d, wantOn:%d", mTargetState, (int) mWantOn);
+  ESP_LOGD(TAG, "target state: %d, wantOn:%d", mTargetPhase, (int) mWantOn);
 }
 
 void SwitchingDimmerOutput::update()
@@ -55,7 +61,7 @@ void SwitchingDimmerOutput::update()
     if (isOn())
     {
       turnOff();
-      mTargetState = mCurrentState;
+      mTargetPhase = mCurrentPhase;
     }
     else if (mIdleCount == resetInterval)
     {
@@ -71,7 +77,7 @@ void SwitchingDimmerOutput::update()
     if (!isOn())
     {
       turnOn();
-    } else if( mCurrentState != mTargetState)
+    } else if( mCurrentPhase != mTargetPhase)
     {
       turnOff();
     }
@@ -82,28 +88,40 @@ void SwitchingDimmerOutput::dump_config()
 {
   ESP_LOGCONFIG(TAG, "SwitchingDimmerOutput:");
   LOG_PIN("  Output Pin:  ", mOutputPin);
+  ESP_LOGCONFIG(TAG, "  Nr phases:   %d", mNrPhases);
+  ESP_LOGCONFIG(TAG, "  Direction:   %s", (mDirection == Direction::UP ? "Up" : "Down"));
+}
+
+void SwitchingDimmerOutput::set_nr_phases(int nrPhases)
+{
+  mNrPhases = std::max(1, nrPhases);
+}
+
+void SwitchingDimmerOutput::set_direction(Direction direction)
+{
+  mDirection = direction;
 }
 
 void SwitchingDimmerOutput::reset()
-{
-  mCurrentState = DimmerState::STATE_HIGH;
-  mTargetState = DimmerState::STATE_HIGH;
+{  
+  mCurrentPhase = 0;
+  mTargetPhase = 0;
   ESP_LOGD(TAG, "Reset");
 }
 
 void SwitchingDimmerOutput::turnOn()
 {
   mOutputPin->digital_write(true);
-  ESP_LOGD(TAG, "turn on, state: %d", mCurrentState);
+  ESP_LOGD(TAG, "turn on, state: %d", mCurrentPhase);
 }
 
 void SwitchingDimmerOutput::turnOff()
 {
   mOutputPin->digital_write(false);
   mIdleCount = 0;
-  DimmerState oldState { mCurrentState };
-  mCurrentState = (DimmerState) (((int)mCurrentState + 1) % (int)(DimmerState::STATE_COUNT));
-  ESP_LOGD(TAG, "turn off, state: %d -> %d", oldState, mCurrentState);
+  int oldPhase = mCurrentPhase;
+  mCurrentPhase = (mCurrentPhase + 1) % mNrPhases;
+  ESP_LOGD(TAG, "turn off, state: %d -> %d", oldPhase, mCurrentPhase);
 }
 
 bool SwitchingDimmerOutput::isOn() const 
