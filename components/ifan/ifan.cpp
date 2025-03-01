@@ -14,8 +14,7 @@ int target_fan_speed;
 int start_time_offset;
 
 IFan::IFan()
-  : speed_count_ {0}
-  , current_speed {0}
+  : current_speed {0}
   , buzzer_enable {false}
   , remote_enable {false}
   , mLightClickTrigger{}
@@ -23,7 +22,6 @@ IFan::IFan()
   , mWifiLongClickTrigger{}
   , mWifiShortClickTrigger{}
   , mRemoteParser{}
-  }
 {
 
 }
@@ -69,7 +67,7 @@ void IFan::write_state_()
   int local_speed = static_cast<int>(speed);
   ESP_LOGD(TAG, "State: %s, Speed: %i ",state ? "ON" : "OFF", local_speed);
   if (!state)
-    set_off();
+    do_speed(0);
   if (state)
     do_speed(local_speed);
 }  // write_state_
@@ -113,7 +111,7 @@ void IFan::do_speed(const int lspeed){
 }
 
 void IFan::beep(int num) {
-  if (!buzzer_enable_)
+  if (!buzzer_enable)
     return;
   for (int i = 0; i < num; i++) {
     digitalWrite(buzzer, LOW);
@@ -123,7 +121,7 @@ void IFan::beep(int num) {
   }
 }
 void IFan::long_beep(int num) {
-  if (!buzzer_enable_)
+  if (!buzzer_enable)
     return;
   for (int i = 0; i < num; i++) {
     digitalWrite(buzzer, LOW);
@@ -134,7 +132,7 @@ void IFan::long_beep(int num) {
 }
 
 void IFan::loop() {
-    if (!remote_enable_)
+    if (!remote_enable)
         return;
     while (available()) {
         uint8_t c;
@@ -144,10 +142,10 @@ void IFan::loop() {
         case IfanRemoteParser::Action::FAN_OFF:
           do_speed(0);
           break;
-        case iFanRemoteParser::Action::FAN_LOW:
+        case IfanRemoteParser::Action::FAN_LOW:
           do_speed(1);
           break;
-        case iFanRemoteParser::Action::FAN_MED:
+        case IfanRemoteParser::Action::FAN_MED:
           do_speed(2);
           break;
         case IfanRemoteParser::Action::FAN_HIGH:
@@ -156,30 +154,33 @@ void IFan::loop() {
         case IfanRemoteParser::Action::LIGHT:
           mLightClickTrigger.trigger();
           break;
-        case IFanRemoteParser::Action::EXTRA:
+        case IfanRemoteParser::Action::EXTRA:
           mExtraClickTrigger.trigger();
           break;
-        case IFanRemoteParser::Action::WIFI_SHORT:
+        case IfanRemoteParser::Action::WIFI_SHORT:
           mWifiShortClickTrigger.trigger();
           break;
         case IfanRemoteParser::Action::WIFI_LONG:
           mWifiLongClickTrigger.trigger();
           break;
-        case IFanRemoteParser::Action::NONE:
+        case IfanRemoteParser::Action::NONE:
         default:
           break;
         }
     }
 }
 
+#if 0
+
 void IFan::handle_char_(uint8_t c) {
-    if (!remote_enable_)
+    if (!remote_enable)
         return;
     static int state = 0;
     static uint8_t type = 0;
     static uint8_t param = 0;
     uint8_t csum;
 }
+#endif
 }  // namespace ifan
 
 }  // namespace esphome

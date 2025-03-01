@@ -22,13 +22,15 @@ class IFan : public Component, public fan::Fan , public uart::UARTDevice {
   void setup() override;
   void dump_config() override;
   fan::FanTraits get_traits() override;
-  void set_buzzer_enable(bool buzzer_enable) { buzzer_enable_ = buzzer_enable; }
-  void set_remote_enable(bool remote_enable) { remote_enable_ = remote_enable;};
+  void set_buzzer_enable(bool buzzer_enable) { buzzer_enable = buzzer_enable; }
+  void set_remote_enable(bool remote_enable) { remote_enable = remote_enable;};
 
+  #if 0
   Trigger<> *get_light_click_trigger() const { return &mLightClickTrigger; }
   Trigger<> *get_extra_click_trigger() const { return &mExtraClickTrigger; }
   Trigger<> *get_wifi_short_click_trigger() const { return &mWifiShortClickTrigger; }
   Trigger<> *get_wifi_long_click_trigger() const { return &mWifiLongClickTrigger; }
+  #endif
  private:
   void control(const fan::FanCall &call) override;
   void write_state_();
@@ -36,10 +38,9 @@ class IFan : public Component, public fan::Fan , public uart::UARTDevice {
   void beep(int);
   void long_beep(int);
 
-  int speed_count;
   int current_speed;
-  bool buzzer_enable_;
-  bool remote_enable_;
+  bool buzzer_enable;
+  bool remote_enable;
   void loop() override;
   
   Trigger<> mLightClickTrigger;

@@ -8,11 +8,15 @@ public:
 
     enum class Action
     {
+        NONE,
         LIGHT,
         FAN_OFF,
         FAN_LOW,
         FAN_MED,
-        FAN_HIGH
+        FAN_HIGH,
+        WIFI_LONG,
+        WIFI_SHORT,
+        EXTRA
     };
 
     Action handleChar(uint8_t c);

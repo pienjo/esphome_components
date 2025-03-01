@@ -1,4 +1,5 @@
 #include "IfanRemoteParser.h"
+#include "esphome/core/log.h"
 
 #define TAG "IFAN"
 
