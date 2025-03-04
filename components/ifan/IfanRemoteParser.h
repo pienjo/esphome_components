@@ -4,27 +4,27 @@
 class IfanRemoteParser
 {
 public:
-    IfanRemoteParser();
+  IfanRemoteParser();
 
-    enum class Action
-    {
-        NONE,
-        LIGHT,
-        FAN_OFF,
-        FAN_LOW,
-        FAN_MED,
-        FAN_HIGH,
-        WIFI_LONG,
-        WIFI_SHORT,
-        EXTRA
-    };
+  enum class Action
+  {
+    NONE,
+    LIGHT,
+    FAN_OFF,
+    FAN_LOW,
+    FAN_MED,
+    FAN_HIGH,
+    WIFI_LONG,
+    WIFI_SHORT,
+    EXTRA
+  };
 
-    Action handleChar(uint8_t c);
+  Action handleChar(uint8_t c);
 
 private:
-    int mParsingState;
+  int mParsingState;
 
-    uint8_t mType;
-    uint8_t mParam;
+  uint8_t mType;
+  uint8_t mParam;
 
 };

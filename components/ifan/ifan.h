@@ -15,8 +15,7 @@ namespace ifan {
 
 
 class IFan : public Component, public fan::Fan , public uart::UARTDevice {
- public:
-#define TAG "IFAN"
+public:
 
   IFan();
   void setup() override;
@@ -31,7 +30,8 @@ class IFan : public Component, public fan::Fan , public uart::UARTDevice {
   Trigger<> *get_wifi_short_click_trigger() const { return &mWifiShortClickTrigger; }
   Trigger<> *get_wifi_long_click_trigger() const { return &mWifiLongClickTrigger; }
   #endif
- private:
+
+private:
   void control(const fan::FanCall &call) override;
   void write_state_();
   void do_speed(int lspeed);
