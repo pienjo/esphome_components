@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import fan,uart
+from esphome.components import fan
 from esphome import automation
 from esphome.automation import maybe_simple_id
 
@@ -12,7 +12,7 @@ from esphome.const import (
 
 from esphome.core import  coroutine_with_priority
 
-DEPENDENCIES = ['uart']
+DEPENDENCIES = []
 
 BUZZER_ENABLE = "buzzer_enable"
 REMOTE_ENABLE = "remote_enable"
@@ -20,7 +20,7 @@ REMOTE_ENABLE = "remote_enable"
 CONF_LIGHT = "light"
 
 ifan_ns = cg.esphome_ns.namespace("ifan")
-IFan = ifan_ns.class_("IFan", cg.Component, fan.Fan, uart.UARTDevice)
+IFan = ifan_ns.class_("IFan", cg.Component, fan.Fan)
 CycleSpeedAction = ifan_ns.class_("CycleSpeedAction", automation.Action)
 
 CONFIG_SCHEMA = fan.FAN_SCHEMA.extend(
@@ -30,7 +30,7 @@ CONFIG_SCHEMA = fan.FAN_SCHEMA.extend(
     cv.Optional(REMOTE_ENABLE, default=True): cv.boolean,
     cv.Optional(CONF_ON_CLICK): automation.validate_automation(single=True),
   }
-).extend(cv.COMPONENT_SCHEMA).extend(uart.UART_DEVICE_SCHEMA)
+).extend(cv.COMPONENT_SCHEMA)
 
 FAN_ACTION_SCHEMA = maybe_simple_id(
   {
@@ -49,18 +49,7 @@ async def to_code(config):
   var = cg.new_Pvariable(config[CONF_OUTPUT_ID])
   cg.add(var.set_buzzer_enable(config[BUZZER_ENABLE]))
   cg.add(var.set_remote_enable(config[REMOTE_ENABLE]))
-  if REMOTE_ENABLE in config:
-    #await cg.register_component(var, config)
-    await uart.register_uart_device(var, config)
   await cg.register_component(var, config)
-
   await fan.register_fan(var, config)
 
-  
   cg.add_global(ifan_ns.using)
-  if CONF_LIGHT in config:
-    conf = config[CONF_LIGHT]
-    if CONF_ON_CLICK in conf:
-      await automation.build_automation(
-        var.get_light_click_trigger(), [], conf[CONF_ON_CLICK]
-      )

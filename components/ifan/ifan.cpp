@@ -14,14 +14,8 @@ namespace esphome {
 namespace ifan {
 
 IFan::IFan()
-  : current_speed {0}
-  , buzzer_enable {false}
-  , remote_enable {false}
-  , mLightClickTrigger{}
-  , mExtraClickTrigger{}
-  , mWifiLongClickTrigger{}
-  , mWifiShortClickTrigger{}
-  , mRemoteParser{}
+  : current_speed_ {0}
+  , buzzer_enable_ {false}
 {
 
 }
@@ -38,7 +32,7 @@ void IFan::setup() {
   auto restore = restore_state_();
   if (restore.has_value()) {
     restore->apply(*this);
-    current_speed = speed;
+    current_speed_ = speed;
     write_state_();
   }
 }
@@ -112,7 +106,7 @@ void IFan::do_speed(const int lspeed){
 }
 
 void IFan::beep(int num) {
-  if (!buzzer_enable)
+  if (!buzzer_enable_)
     return;
   for (int i = 0; i < num; i++) {
     digitalWrite(buzzer, LOW);
@@ -122,7 +116,7 @@ void IFan::beep(int num) {
   }
 }
 void IFan::long_beep(int num) {
-  if (!buzzer_enable)
+  if (!buzzer_enable_)
     return;
   for (int i = 0; i < num; i++) {
     digitalWrite(buzzer, LOW);
@@ -132,42 +126,49 @@ void IFan::long_beep(int num) {
   }
 }
 
-void IFan::loop() {
-  if (!remote_enable)
-      return;
-  while (available()) {
-    uint8_t c;
-    read_byte(&c);
-    switch(mRemoteParser.handleChar(c))
+void IFan::cycle_speed()
+{
+  int speed_count = get_traits().supported_speed_count()
+  if (speed_count)
+  {
+    if (state)
     {
-    case IfanRemoteParser::Action::FAN_OFF:
-      do_speed(0);
-      break;
-    case IfanRemoteParser::Action::FAN_LOW:
-      do_speed(1);
-      break;
-    case IfanRemoteParser::Action::FAN_MED:
-      do_speed(2);
-      break;
-    case IfanRemoteParser::Action::FAN_HIGH:
-      do_speed(3);
-      break;
-    case IfanRemoteParser::Action::LIGHT:
-      mLightClickTrigger.trigger();
-      break;
-    case IfanRemoteParser::Action::EXTRA:
-      mExtraClickTrigger.trigger();
-      break;
-    case IfanRemoteParser::Action::WIFI_SHORT:
-      mWifiShortClickTrigger.trigger();
-      break;
-    case IfanRemoteParser::Action::WIFI_LONG:
-      mWifiLongClickTrigger.trigger();
-      break;
-    case IfanRemoteParser::Action::NONE:
-    default:
-      break;
+      // Fan was on.
+      int new_speed_count = (speed + 1 ) % (supported_speed_count + 1);
+
+      if (0 == new_speed_count)
+      {
+        // Cycled around
+        auto call = turn_off();
+        call.set_speed(speed);
+        call.perform();
+      }
+  if (speed_count) {
+    if (state) {
+      int new_speed = ; 
+      if (new_speed > supported_speed_count) {
+        // was running at max speed, so turn off
+        auto call = turn_off();
+        call.perform();
+      } else {
+        auto call = turn_on();
+        call.set_speed(new_speed);
+        call.perform();
+      }
+    } else {
+      // fan was off, so set speed to 1
+      auto call = turn_on();
+      call.set_speed(1);
+      call.perform();
     }
+  } else {
+    // fan doesn't support speed counts, so toggle
+    toggle().perform();
   }
+}
+
+void IFan::loop() 
+{
+  
 }
 }  // namespace esphome
