@@ -2,7 +2,6 @@
 //#include "esphome/components/fan/fan_helpers.h"
 #include "esphome/core/log.h"
 #include "esphome.h"
-#include "light.h"
 
 #define buzzer 10
 #define relay_1 14
