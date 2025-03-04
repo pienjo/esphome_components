@@ -3,30 +3,33 @@
 #include "esphome/core/log.h"
 #include "esphome.h"
 
-#define buzzer 10
-#define relay_1 14
-#define relay_2 12
-#define relay_3 15
 #define TAG "IFAN"
 
-namespace esphome {
-namespace ifan {
+namespace esphome::ifan {
 
-IFan::IFan()
-  : current_speed_ {0}
+IFan::IFan(
+    InternalGPIOPin *low_pin,
+    InternalGPIOPin *mid_pin,
+    InternalGPIOPin *high_pin,
+    InternalGPIOPin *buzzer_pin)
+  : low_pin_ { low_pin }
+  , mid_pin_ { mid_pin }
+  , high_pin_{ high_pin }
+  , buzzer_pin_ { buzzer_pin }
   , buzzer_enable_ {false}
+  , current_speed_ {0}
 {
 
 }
 
 void IFan::setup() {
-  pinMode(buzzer, 0x01);
-  pinMode(relay_1, 0x01);
-  pinMode(relay_2, 0x01);
-  pinMode(relay_3, 0x01);
-
+  low_pin_->pin_mode(esphome::gpio::FLAG_OUTPUT);
+  mid_pin_->pin_mode(esphome::gpio::FLAG_OUTPUT);
+  high_pin_->pin_mode(esphome::gpio::FLAG_OUTPUT);
+  buzzer_pin_->pin_mode(esphome::gpio::FLAG_OUTPUT);
+  
   //Initialize buzzer to stop errant beeping due to non-initialized pin
-  digitalWrite(buzzer, HIGH);
+  buzzer_pin_->digital_write(true);
 
   auto restore = restore_state_();
   if (restore.has_value()) {
@@ -35,9 +38,15 @@ void IFan::setup() {
     write_state_();
   }
 }
+
 void IFan::dump_config() 
 { 
-  LOG_FAN("", "IFan", this); 
+  ESP_LOGCONFIG(TAG, "Ifan:");
+  LOG_PIN("  Low Pin:      ", low_pin_);
+  LOG_PIN("  Mid Pin:      ", mid_pin_);
+  LOG_PIN("  High Pin:      ", high_pin_);
+  LOG_PIN("  Buzzer Pin:    ", buzzer_pin_)
+  ESP_LOGCONFIG(TAG, "  Buzzer enabled:", (int) buzzer_enable_);
 }
 
 fan::FanTraits IFan::get_traits() 
@@ -69,34 +78,36 @@ void IFan::write_state_()
 void IFan::do_speed(const int lspeed){
   switch (lspeed) {
     case 1:
-        // low speed
-      digitalWrite(relay_1, HIGH);
-      digitalWrite(relay_2, LOW);
-      digitalWrite(relay_3, LOW);
+      // low speed
+      low_pin_->digital_write(true);
+      mid_pin_->digital_write(false);
+      high_pin_->digital_write(false);
+
       beep(1);
 
       break;
     case 2:
       // medium speed
-      digitalWrite(relay_1, LOW);
-      digitalWrite(relay_2, HIGH);
-      digitalWrite(relay_3, LOW);
+      low_pin_->digital_write(false);
+      mid_pin_->digital_write(true);
+      high_pin_->digital_write(false);
+      
       beep(2);
       break;
     case 3:
       // high speed
-      digitalWrite(relay_1, LOW);
-      digitalWrite(relay_2, LOW);
-      digitalWrite(relay_3, HIGH);
+      low_pin_->digital_write(false);
+      mid_pin_->digital_write(false);
+      high_pin_->digital_write(true);
       beep(3);      
 
       break;
 
     default:
       // turn off
-      digitalWrite(relay_1, LOW);
-      digitalWrite(relay_2, LOW);
-      digitalWrite(relay_3, LOW);
+      low_pin_->digital_write(false);
+      mid_pin_->digital_write(false);
+      high_pin_->digital_write(false);
       
       long_beep(1);
 
@@ -108,50 +119,45 @@ void IFan::beep(int num) {
   if (!buzzer_enable_)
     return;
   for (int i = 0; i < num; i++) {
-    digitalWrite(buzzer, LOW);
+    buzzer_pin_->digital_write(false);
     delay(50);
-    digitalWrite(buzzer, HIGH);
+    buzzer_pin_->digital_write(true);
     delay(50);
   }
 }
+
 void IFan::long_beep(int num) {
   if (!buzzer_enable_)
     return;
   for (int i = 0; i < num; i++) {
-    digitalWrite(buzzer, LOW);
+    buzzer_pin_->digital_write(false);
     delay(500);
-    digitalWrite(buzzer, HIGH);
+    buzzer_pin_->digital_write(true);
     delay(500);
   }
 }
 
 void IFan::cycle_speed()
 {
-  int speed_count = get_traits().supported_speed_count()
+  int speed_count = get_traits().supported_speed_count();
   if (speed_count)
   {
     if (state)
     {
       // Fan was on.
-      int new_speed_count = (speed + 1 ) % (supported_speed_count + 1);
+      int new_speed_count = (speed + 1 ) % (speed_count + 1);
 
       if (0 == new_speed_count)
       {
-        // Cycled around
+        // Cycled around -> stop
         auto call = turn_off();
-        call.set_speed(speed);
+        call.set_speed(new_speed_count);
         call.perform();
       }
-  if (speed_count) {
-    if (state) {
-      int new_speed = ; 
-      if (new_speed > supported_speed_count) {
-        // was running at max speed, so turn off
-        auto call = turn_off();
-        call.perform();
-      } else {
+      else
+      {
         auto call = turn_on();
-        call.set_speed(new_speed);
+        call.set_speed(new_speed_count);
         call.perform();
       }
     } else {
@@ -166,8 +172,4 @@ void IFan::cycle_speed()
   }
 }
 
-void IFan::loop() 
-{
-  
-}
-}  // namespace esphome
+}  // namespace esphome::ifan

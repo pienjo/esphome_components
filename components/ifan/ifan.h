@@ -4,13 +4,18 @@
 #include "esphome/components/fan/fan.h"
 #include "esphome/components/fan/fan_state.h"
 #include "esphome/core/automation.h"
+#include <esphome/core/hal.h>
 
 namespace esphome::ifan 
 {
 class IFan : public Component, public fan::Fan {
 public:
 
-  IFan();
+  IFan(InternalGPIOPin *low_pin,
+       InternalGPIOPin *mid_pin,
+       InternalGPIOPin *high_pin,
+       InternalGPIOPin *buzzer_pin);
+
   void setup() override;
   void dump_config() override;
   fan::FanTraits get_traits() override;
@@ -24,8 +29,15 @@ protected:
   void beep(int);
   void long_beep(int);
 
-  int current_speed_;
+  // Configuration
+  InternalGPIOPin *low_pin_;
+  InternalGPIOPin *mid_pin_;
+  InternalGPIOPin *high_pin_;
+  InternalGPIOPin *buzzer_pin_;
   bool buzzer_enable_;
+
+  // State
+  int current_speed_;
 };
 
 template<typename... Ts> class CycleSpeedAction : public Action<Ts...> {

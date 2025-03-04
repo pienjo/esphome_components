@@ -73,8 +73,14 @@ fan:
   - platform: ifan
     id: the_fan
     name: "${friendly_name} Fan"
+    low_pin: GPIO14
+    mid_pin: GPIO12
+    high_pin: GPIO15
+    buzzer_pin: GPIO10
+    
     # optional: allows you to disable the buzzer, enabled by default. 
     # buzzer_enable: false 
+
 button:
   - platform: template
     name: ${friendly_name} Cycle Fan
