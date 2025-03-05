@@ -24,8 +24,8 @@ public:
 
 protected:
   void control(const fan::FanCall &call) override;
-  void write_state_();
-  void do_speed(int lspeed);
+  void loop() override;
+
   void beep(int);
   void long_beep(int);
 
@@ -36,8 +36,22 @@ protected:
   InternalGPIOPin *buzzer_pin_;
   bool buzzer_enable_;
 
-  // State
-  int current_speed_;
+  enum class DeviceState
+  {
+    Stationary = 0, // Device has been idle for a while and is prbably stationary
+    Low = 1,        // low speed
+    Mid = 2,        // medium speed
+    High = 3,       // high speed
+    Coasting,       // Device has just been turned off and is probably still moving
+    Accelerating    // Device needs to go to low but comes from standstill
+  };
+
+  DeviceState ifan_state_;
+  DeviceState target_state_;
+
+  void set_ifan_state_(DeviceState state);
+  
+  int coast_accel_timeout_; // in millis
 };
 
 template<typename... Ts> class CycleSpeedAction : public Action<Ts...> {

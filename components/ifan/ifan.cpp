@@ -2,10 +2,16 @@
 //#include "esphome/components/fan/fan_helpers.h"
 #include "esphome/core/log.h"
 #include "esphome.h"
-
+#include <chrono>
 #define TAG "IFAN"
 
 namespace esphome::ifan {
+namespace
+{
+  // time in milliseconds
+  constexpr int deacceleration_time { 15000 };
+  constexpr int acceleration_time { 2000 };
+}
 
 IFan::IFan(
     InternalGPIOPin *low_pin,
@@ -17,7 +23,9 @@ IFan::IFan(
   , high_pin_{ high_pin }
   , buzzer_pin_ { buzzer_pin }
   , buzzer_enable_ {false}
-  , current_speed_ {0}
+  , ifan_state_ {DeviceState::Stationary}
+  , target_state_ {DeviceState::Stationary}
+  , coast_accel_timeout_ {0}
 {
 
 }
@@ -34,8 +42,12 @@ void IFan::setup() {
   auto restore = restore_state_();
   if (restore.has_value()) {
     restore->apply(*this);
-    current_speed_ = speed;
-    write_state_();
+    target_state_ = DeviceState::Stationary;
+    if (state)
+    {
+      target_state_ = (DeviceState) speed;
+    }
+    ESP_LOGD(TAG, "Target state: %d", (int) target_state_);  
   }
 }
 
@@ -61,56 +73,81 @@ void IFan::control(const fan::FanCall &call)
   if (call.get_speed().has_value())
     speed = *call.get_speed();
 
-  write_state_();
+  target_state_ = DeviceState::Stationary;
+  if (state)
+  {
+    target_state_ = (DeviceState) speed;
+  }
+  ESP_LOGD(TAG, "Target state: %d", (int) target_state_);
+  
   publish_state();
 }
 
-void IFan::write_state_() 
+void IFan::loop() 
 {
-  int local_speed = static_cast<int>(speed);
-  ESP_LOGD(TAG, "State: %s, Speed: %i ",state ? "ON" : "OFF", local_speed);
-  if (!state)
-    do_speed(0);
-  if (state)
-    do_speed(local_speed);
-}  // write_state_
+  if (target_state_ == ifan_state_)
+  {
+    return;
+  }
 
-void IFan::do_speed(const int lspeed){
-  switch (lspeed) {
-    case 1:
-      // low speed
-      low_pin_->digital_write(true);
+  switch(target_state_)
+  {
+    case DeviceState::Coasting:
+    case DeviceState::Stationary:
+      low_pin_->digital_write(false);
       mid_pin_->digital_write(false);
       high_pin_->digital_write(false);
-
-      beep(1);
-
+        
+      if (DeviceState::Coasting == ifan_state_)
+      {
+        if (millis() >= coast_accel_timeout_)
+        {
+          set_ifan_state_(DeviceState::Stationary);
+        }
+      }
+      else
+      {
+        coast_accel_timeout_ = millis() + deacceleration_time;
+        set_ifan_state_(DeviceState::Coasting);
+      }
       break;
-    case 2:
-      // medium speed
+    case DeviceState::Low:
+    case DeviceState::Accelerating:
+      switch(ifan_state_)
+      {
+        case DeviceState::Stationary:
+          // Ramp up.
+          coast_accel_timeout_ = millis() + acceleration_time;
+          low_pin_->digital_write(false);
+          mid_pin_->digital_write(true);
+          high_pin_->digital_write(false);
+          set_ifan_state_(DeviceState::Accelerating);
+          break;
+        case DeviceState::Accelerating:
+          if (millis() < coast_accel_timeout_)
+          {
+            break;
+          } 
+          [[fallthrough]];
+        default:
+          low_pin_->digital_write(true);
+          mid_pin_->digital_write(false);
+          high_pin_->digital_write(false);
+          set_ifan_state_(DeviceState::Low);
+          break;
+      }
+      break;
+    case DeviceState::Mid:
       low_pin_->digital_write(false);
       mid_pin_->digital_write(true);
       high_pin_->digital_write(false);
-      
-      beep(2);
+      set_ifan_state_(DeviceState::Mid);
       break;
-    case 3:
-      // high speed
+    case DeviceState::High:
       low_pin_->digital_write(false);
       mid_pin_->digital_write(false);
       high_pin_->digital_write(true);
-      beep(3);      
-
-      break;
-
-    default:
-      // turn off
-      low_pin_->digital_write(false);
-      mid_pin_->digital_write(false);
-      high_pin_->digital_write(false);
-      
-      long_beep(1);
-
+      set_ifan_state_(DeviceState::High);
       break;
   }
 }
@@ -170,6 +207,12 @@ void IFan::cycle_speed()
     // fan doesn't support speed counts, so toggle
     toggle().perform();
   }
+}
+
+void ifan::IFan::set_ifan_state_(DeviceState newState)
+{
+  ESP_LOGD(TAG, "state: %d -> %d", (int) ifan_state_, (int) newState);
+  ifan_state_ = newState;
 }
 
 }  // namespace esphome::ifan
