@@ -26,9 +26,8 @@ ifan_ns = cg.esphome_ns.namespace("ifan")
 IFan = ifan_ns.class_("IFan", cg.Component, fan.Fan)
 CycleSpeedAction = ifan_ns.class_("CycleSpeedAction", automation.Action)
 
-CONFIG_SCHEMA = fan.FAN_SCHEMA.extend(
+CONFIG_SCHEMA = fan.fan_schema(IFan).extend(
   {
-    cv.GenerateID(CONF_OUTPUT_ID): cv.declare_id(IFan),
     cv.Required(CONF_PIN_LOW): pins.gpio_output_pin_schema,
     cv.Required(CONF_PIN_MID): pins.gpio_output_pin_schema,
     cv.Required(CONF_PIN_HIGH): pins.gpio_output_pin_schema,
@@ -37,15 +36,14 @@ CONFIG_SCHEMA = fan.FAN_SCHEMA.extend(
   }
 ).extend(cv.COMPONENT_SCHEMA)
 
-FAN_ACTION_SCHEMA = maybe_simple_id(
-  {
-    cv.Required(CONF_ID): cv.use_id(IFan),
-  }
+@automation.register_action(
+    "ifan.cycle_speed", 
+    CycleSpeedAction, 
+    maybe_simple_id({cv.GenerateID(): cv.use_id(IFan)})
 )
-@automation.register_action("ifan.cycle_speed", CycleSpeedAction, FAN_ACTION_SCHEMA)
 async def fan_cycle_speed_to_code(config, action_id, template_arg, args):
-  paren = await cg.get_variable(config[CONF_ID])
-  return cg.new_Pvariable(action_id, template_arg, paren)
+    parent = await cg.get_variable(config[CONF_ID])
+    return cg.new_Pvariable(action_id, template_arg, parent)
 
 @coroutine_with_priority(100.0)
 
@@ -56,7 +54,7 @@ async def to_code(config):
   buzzer_pin = await cg.gpio_pin_expression(config[CONF_PIN_BUZZER])
 
   cg.add_define("USE_FAN")
-  var = cg.new_Pvariable(config[CONF_OUTPUT_ID], low_pin, mid_pin, high_pin, buzzer_pin )
+  var = await fan.new_fan(config, low_pin, mid_pin, high_pin, buzzer_pin )
   cg.add(var.set_buzzer_enable(config[BUZZER_ENABLE]))
   
   await cg.register_component(var, config)
