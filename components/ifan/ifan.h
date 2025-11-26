@@ -2,7 +2,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/fan/fan.h"
-#include "esphome/components/fan/fan_state.h"
+// #include "esphome/components/fan/fan_state.h"
 #include "esphome/core/automation.h"
 #include <esphome/core/hal.h>
 
