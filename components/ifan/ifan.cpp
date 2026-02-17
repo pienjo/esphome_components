@@ -58,7 +58,7 @@ void IFan::dump_config()
   LOG_PIN("  Mid Pin:      ", mid_pin_);
   LOG_PIN("  High Pin:      ", high_pin_);
   LOG_PIN("  Buzzer Pin:    ", buzzer_pin_)
-  ESP_LOGCONFIG(TAG, "  Buzzer enabled:", (int) buzzer_enable_);
+  //ESP_LOGCONFIG(TAG, "  Buzzer enabled:", (int) buzzer_enable_);
 }
 
 fan::FanTraits IFan::get_traits() 
