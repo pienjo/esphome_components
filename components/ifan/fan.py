@@ -39,7 +39,8 @@ CONFIG_SCHEMA = fan.fan_schema(IFan).extend(
 @automation.register_action(
     "ifan.cycle_speed", 
     CycleSpeedAction, 
-    maybe_simple_id({cv.GenerateID(): cv.use_id(IFan)})
+    maybe_simple_id({cv.GenerateID(): cv.use_id(IFan)},),
+    synchronous=True
 )
 async def fan_cycle_speed_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
